@@ -36,7 +36,8 @@
     "strict": true,
     "credentials": [],
     "nodes": [
-      "dist/nodes/Example/Example.node.js"
+      "dist/nodes/Example/Example.node.js",
+      "dist/nodes/Adapter/Incluc0deAdapter.node.ts"
     ]
   },
   "devDependencies": {
