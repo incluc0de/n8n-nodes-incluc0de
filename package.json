@@ -1,7 +1,17 @@
 {
-  "name": "node-starter",
-  "private": true,
+  "name": "n8n-nodes-incluc0de",
+  "version": "0.1.0",
+  "description": "Custom n8n nodes for the IncluC0de cognitive inclusion and adaptive content ecosystem",
+  "license": "MIT",
+  "keywords": [
+    "n8n-community-node-package",
+    "n8n",
+    "incluc0de",
+    "cognitive-adaptation",
+    "accessibility"
+  ],
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build": "tsc",
+    "dev": "tsc --watch"
   }
 }
