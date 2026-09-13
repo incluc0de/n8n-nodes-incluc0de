@@ -19,7 +19,7 @@ export class Incluc0deAdapter implements INodeType {
 		},
 		inputs: [NodeConnectionTypes.Main],
 		outputs: [NodeConnectionTypes.Main],
-		usableAsTool: false,
+		//usableAsTool: true, // não permite colocar false ... tem de comentar
 		properties: [
 			// Node properties which the user gets displayed and
 			// can change on the node.
