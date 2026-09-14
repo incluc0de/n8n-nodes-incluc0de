@@ -15,53 +15,6 @@ import type {
 	Incluc0deContextTool,
 } from './types';
 
-/**
- * Resultado produzido por uma fonte de contexto IncluC0de.
- *
- * Exemplos futuros:
- * - EEG
- * - Interaction
- * - Profile
- * - LMS
- * - Adaptation History
- */
-export interface Incluc0deContextResult {
-	contextType: string;
-
-	status:
-		| 'success'
-		| 'unavailable'
-		| 'error';
-
-	context: unknown | null;
-
-	metadata?: Record<string, unknown>;
-}
-
-/**
- * Resultado agregado pelo Context Provider.
- */
-export interface Incluc0deContextProviderResult {
-	status:
-		| 'success'
-		| 'partial'
-		| 'unavailable';
-
-	contexts: Incluc0deContextResult[];
-}
-
-/**
- * Interface fornecida pelo Context Provider
- * ao IncluC0de Agent.
- */
-export interface Incluc0deContextProvider {
-	getContexts(
-		input: {
-			sessionId?: string | null;
-			userId?: string | null;
-		},
-	): Promise<Incluc0deContextProviderResult>;
-}
 
 /**
  * IncluC0de Context Provider
