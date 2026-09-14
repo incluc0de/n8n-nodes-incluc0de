@@ -11,6 +11,11 @@ import {
 	NodeOperationError,
 } from 'n8n-workflow';
 
+import type {
+	Incluc0deContextProvider,
+	Incluc0deContextProviderResult,
+} from '../Context/ContextProvider.node';
+
 interface Incluc0deAgentResponse {
 	sessionId?: string | null;
 	userId?: string | null;
@@ -20,8 +25,11 @@ interface Incluc0deAgentResponse {
 }
 
 export class Incluc0deAgent implements INodeType {
+
 	description: INodeTypeDescription = {
+
 		displayName: 'IncluC0de Agent',
+
 		name: 'incluc0deAgent',
 
 		icon: {
@@ -40,24 +48,40 @@ export class Incluc0deAgent implements INodeType {
 			name: 'IncluC0de Agent',
 		},
 
-		inputs: [	{
-			       type: NodeConnectionTypes.Main,
-		           },
-		           {
-			       type: NodeConnectionTypes.AiTool,
-		 	       displayName: 'Context',
-			       required: false,
-			       maxConnections: 1,
-		           },
-	           ],
-		outputs: [NodeConnectionTypes.Main],
+		/*
+		 * ---------------------------------------------------------
+		 * Entradas
+		 *
+		 * Main:
+		 * conteúdo vindo do fluxo normal.
+		 *
+		 * Context:
+		 * Context Provider especializado.
+		 * ---------------------------------------------------------
+		 */
+		inputs: [
+			{
+				type: NodeConnectionTypes.Main,
+			},
+			{
+				type: NodeConnectionTypes.AiTool,
+				displayName: 'Context',
+				required: false,
+				maxConnections: 1,
+			},
+		],
+
+		outputs: [
+			NodeConnectionTypes.Main,
+		],
 
 		properties: [
+
 			{
 				displayName: 'Service URL',
 				name: 'serviceUrl',
 				type: 'string',
-				default: 'https://n8n.incluc0de.com.br/webhook/agent',
+				default: 'http://n8n.incluc0de.com.br/webhook/agent',
 				required: true,
 				description:
 					'URL of the IncluC0de Agent adaptation endpoint',
@@ -80,7 +104,7 @@ export class Incluc0deAgent implements INodeType {
 				displayName: 'Session ID',
 				name: 'sessionId',
 				type: 'string',
-				default: '={{ $json.sessionId }}',
+				default: '',
 				description:
 					'Identifier of the current interaction or application session',
 			},
@@ -103,7 +127,8 @@ export class Incluc0deAgent implements INodeType {
 					rows: 2,
 				},
 				default: '',
-				placeholder: 'e.g. ADHD, dyslexia, autism',
+				placeholder:
+					'e.g. ADHD, dyslexia, autism',
 				description:
 					'Optional self-declared information that may be considered during adaptation',
 			},
@@ -122,34 +147,50 @@ export class Incluc0deAgent implements INodeType {
 	async execute(
 		this: IExecuteFunctions,
 	): Promise<INodeExecutionData[][]> {
+
 		const items = this.getInputData();
 
 		const returnData: INodeExecutionData[] = [];
 
-		for (let itemIndex = 0; itemIndex < items.length; itemIndex++) {
+		for (
+			let itemIndex = 0;
+			itemIndex < items.length;
+			itemIndex++
+		) {
+
 			const item = items[itemIndex];
 
-			const serviceUrl = this.getNodeParameter(
-				'serviceUrl',
-				itemIndex,
-			) as string;
+			/*
+			 * -----------------------------------------------------
+			 * Parâmetros do node
+			 * -----------------------------------------------------
+			 */
 
-			const content = this.getNodeParameter(
-				'content',
-				itemIndex,
-			) as string;
+			const serviceUrl =
+				this.getNodeParameter(
+					'serviceUrl',
+					itemIndex,
+				) as string;
 
-			const sessionId = this.getNodeParameter(
-				'sessionId',
-				itemIndex,
-				'',
-			) as string;
+			const content =
+				this.getNodeParameter(
+					'content',
+					itemIndex,
+				) as string;
 
-			const userId = this.getNodeParameter(
-				'userId',
-				itemIndex,
-				'',
-			) as string;
+			const sessionId =
+				this.getNodeParameter(
+					'sessionId',
+					itemIndex,
+					'',
+				) as string;
+
+			const userId =
+				this.getNodeParameter(
+					'userId',
+					itemIndex,
+					'',
+				) as string;
 
 			const selfDeclaredNeurodivergence =
 				this.getNodeParameter(
@@ -158,16 +199,17 @@ export class Incluc0deAgent implements INodeType {
 					'',
 				) as string;
 
-			const failSafe = this.getNodeParameter(
-				'failSafe',
-				itemIndex,
-				true,
-			) as boolean;
+			const failSafe =
+				this.getNodeParameter(
+					'failSafe',
+					itemIndex,
+					true,
+				) as boolean;
 
 			/*
-			 * ---------------------------------------------------------
+			 * -----------------------------------------------------
 			 * Normalização
-			 * ---------------------------------------------------------
+			 * -----------------------------------------------------
 			 */
 
 			const normalizedSessionId =
@@ -180,41 +222,150 @@ export class Incluc0deAgent implements INodeType {
 				selfDeclaredNeurodivergence?.trim() || null;
 
 			/*
-			 * ---------------------------------------------------------
-			 * Regra 1:
+			 * -----------------------------------------------------
+			 * CONTEXT PROVIDER
 			 *
-			 * Sem userId e sem autoidentificação:
-			 * não existe informação suficiente para adaptação.
+			 * O Agent tenta localizar um Context Provider
+			 * conectado à entrada especializada Context.
 			 *
-			 * O serviço NÃO deve ser chamado.
-			 * ---------------------------------------------------------
+			 * A ausência do Provider NÃO constitui erro.
+			 * -----------------------------------------------------
+			 */
+
+			let contextProvider:
+				| Incluc0deContextProvider
+				| null = null;
+
+			let contextData:
+				| Incluc0deContextProviderResult
+				| null = null;
+
+			try {
+
+				contextProvider =
+					await this.getInputConnectionData(
+						NodeConnectionTypes.AiTool,
+						0,
+					) as Incluc0deContextProvider;
+
+			} catch {
+
+				/*
+				 * Nenhum Context Provider conectado.
+				 *
+				 * Isso é perfeitamente válido.
+				 */
+				contextProvider = null;
+			}
+
+			/*
+			 * -----------------------------------------------------
+			 * Se houver Provider, solicita os contextos.
+			 * -----------------------------------------------------
 			 */
 
 			if (
-				!normalizedUserId &&
-				!normalizedSelfDeclaration
+				contextProvider &&
+				typeof contextProvider.getContexts ===
+					'function'
 			) {
+
+				try {
+
+					contextData =
+						await contextProvider.getContexts({
+							sessionId:
+								normalizedSessionId,
+
+							userId:
+								normalizedUserId,
+						});
+
+				} catch {
+
+					/*
+					 * Falha no Context Provider não deve
+					 * interromper o fluxo principal.
+					 */
+					contextData = {
+						status: 'unavailable',
+						contexts: [],
+					};
+				}
+			}
+
+			/*
+			 * -----------------------------------------------------
+			 * REGRA ATUAL
+			 *
+			 * Sem User ID, sem autoidentificação e sem contexto:
+			 * não existe informação para adaptação.
+			 *
+			 * Portanto:
+			 *
+			 * NÃO chama o serviço.
+			 * -----------------------------------------------------
+			 */
+
+			const hasUsableContext =
+				contextData !== null &&
+				(
+					contextData.status === 'success' ||
+					contextData.status === 'partial'
+				);
+
+			if (
+				!normalizedUserId &&
+				!normalizedSelfDeclaration &&
+				!hasUsableContext
+			) {
+
 				returnData.push({
+
 					json: {
+
 						...item.json,
 
-						sessionId: normalizedSessionId,
+						sessionId:
+							normalizedSessionId,
 
 						userId: null,
 
-						selfDeclaredNeurodivergence: null,
+						selfDeclaredNeurodivergence:
+							null,
 
-						originalContent: content,
+						originalContent:
+							content,
 
-						adaptedContent: content,
+						adaptedContent:
+							content,
 
 						incluc0de: {
+
 							adapted: false,
-							mode: 'pass_through',
+
+							mode:
+								'pass_through',
+
 							reason:
-								'no_user_or_self_declaration',
+								'no_adaptation_information',
+
+							context: {
+								providerConnected:
+									contextProvider !==
+									null,
+
+								status:
+									contextData?.status ??
+									'unavailable',
+
+								contexts:
+									contextData?.contexts ??
+									[],
+							},
 						},
 					},
+
 					pairedItem: {
 						item: itemIndex,
 					},
@@ -224,35 +375,50 @@ export class Incluc0deAgent implements INodeType {
 			}
 
 			/*
-			 * ---------------------------------------------------------
-			 * Montagem do contrato enviado ao IncluC0de Agent Service
-			 * ---------------------------------------------------------
+			 * -----------------------------------------------------
+			 * Contrato enviado ao IncluC0de Agent Service
+			 *
+			 * IMPORTANTE:
+			 *
+			 * Nesta etapa ainda NÃO enviaremos contextData
+			 * ao endpoint.
+			 *
+			 * Primeiro validaremos a arquitetura de
+			 * Context Provider.
+			 * -----------------------------------------------------
 			 */
 
 			const requestBody: IDataObject = {
-				sessionId: normalizedSessionId,
+
+				sessionId:
+					normalizedSessionId,
+
 				content,
 			};
 
 			if (normalizedUserId) {
+
 				requestBody.userId =
 					normalizedUserId;
 			}
 
 			if (normalizedSelfDeclaration) {
+
 				requestBody.selfDeclaredNeurodivergence =
 					normalizedSelfDeclaration;
 			}
 
 			try {
+
 				/*
-				 * -----------------------------------------------------
-				 * Chamada ao endpoint IncluC0de
-				 * -----------------------------------------------------
+				 * -------------------------------------------------
+				 * Chamada ao serviço IncluC0de
+				 * -------------------------------------------------
 				 */
 
 				const response =
 					await this.helpers.httpRequest({
+
 						method: 'POST',
 
 						url: serviceUrl,
@@ -265,27 +431,25 @@ export class Incluc0deAgent implements INodeType {
 								'application/json',
 						},
 
-						body: requestBody,
+						body:
+							requestBody,
 
-						encoding: 'json',
+						encoding:
+							'json',
 					});
 
 				/*
-				 * -----------------------------------------------------
-				 * O endpoint atual do n8n retorna:
+				 * -------------------------------------------------
+				 * O endpoint atualmente pode retornar:
 				 *
 				 * [
 				 *   {
-				 *     sessionId,
-				 *     userId,
-				 *     selfDeclaredNeurodivergence,
-				 *     originalContent,
-				 *     adaptedContent
+				 *      ...
 				 *   }
 				 * ]
 				 *
-				 * Portanto, normalizamos array/objeto aqui.
-				 * -----------------------------------------------------
+				 * ou diretamente um objeto.
+				 * -------------------------------------------------
 				 */
 
 				let responseData:
@@ -293,27 +457,36 @@ export class Incluc0deAgent implements INodeType {
 					| undefined;
 
 				if (Array.isArray(response)) {
+
 					responseData =
-						response[0] as Incluc0deAgentResponse;
+						response[0] as
+							Incluc0deAgentResponse;
+
 				} else {
+
 					responseData =
-						response as Incluc0deAgentResponse;
+						response as
+							Incluc0deAgentResponse;
 				}
 
 				/*
-				 * -----------------------------------------------------
+				 * -------------------------------------------------
 				 * Validação mínima do contrato
-				 * -----------------------------------------------------
+				 * -------------------------------------------------
 				 */
 
 				if (
 					!responseData ||
-					typeof responseData.adaptedContent !==
-						'string'
+					typeof responseData
+						.adaptedContent !== 'string'
 				) {
+
 					throw new NodeOperationError(
+
 						this.getNode(),
+
 						'The IncluC0de service returned an invalid response contract.',
+
 						{
 							itemIndex,
 						},
@@ -321,13 +494,15 @@ export class Incluc0deAgent implements INodeType {
 				}
 
 				/*
-				 * -----------------------------------------------------
-				 * Resultado do node
-				 * -----------------------------------------------------
+				 * -------------------------------------------------
+				 * Resultado
+				 * -------------------------------------------------
 				 */
 
 				returnData.push({
+
 					json: {
+
 						...item.json,
 
 						sessionId:
@@ -339,28 +514,54 @@ export class Incluc0deAgent implements INodeType {
 							normalizedUserId,
 
 						selfDeclaredNeurodivergence:
-							responseData.selfDeclaredNeurodivergence ??
+							responseData
+								.selfDeclaredNeurodivergence ??
 							normalizedSelfDeclaration,
 
 						originalContent:
-							responseData.originalContent ??
+							responseData
+								.originalContent ??
 							content,
 
 						adaptedContent:
-							responseData.adaptedContent,
+							responseData
+								.adaptedContent,
 
 						incluc0de: {
+
 							adapted:
-								responseData.adaptedContent !==
+								responseData
+									.adaptedContent !==
 								content,
 
 							mode:
 								normalizedUserId
 									? 'user'
-									: 'self_declared',
+									: normalizedSelfDeclaration
+										? 'self_declared'
+										: 'contextual',
 
 							service:
 								'incluc0de-agent',
+
+							/*
+							 * Informações temporárias
+							 * para validar o Context Provider.
+							 */
+							context: {
+
+								providerConnected:
+									contextProvider !==
+									null,
+
+								status:
+									contextData?.status ??
+									'unavailable',
+
+								contexts:
+									contextData?.contexts ??
+									[],
+							},
 						},
 					},
 
@@ -368,17 +569,17 @@ export class Incluc0deAgent implements INodeType {
 						item: itemIndex,
 					},
 				});
+
 			} catch (error) {
+
 				/*
-				 * -----------------------------------------------------
+				 * -------------------------------------------------
 				 * FAIL-SAFE
-				 *
-				 * Um problema no serviço IncluC0de não deve,
-				 * por padrão, interromper a aplicação consumidora.
-				 * -----------------------------------------------------
+				 * -------------------------------------------------
 				 */
 
 				if (!failSafe) {
+
 					throw new NodeOperationError(
 						this.getNode(),
 						error as Error,
@@ -389,7 +590,9 @@ export class Incluc0deAgent implements INodeType {
 				}
 
 				returnData.push({
+
 					json: {
+
 						...item.json,
 
 						sessionId:
@@ -401,11 +604,14 @@ export class Incluc0deAgent implements INodeType {
 						selfDeclaredNeurodivergence:
 							normalizedSelfDeclaration,
 
-						originalContent: content,
+						originalContent:
+							content,
 
-						adaptedContent: content,
+						adaptedContent:
+							content,
 
 						incluc0de: {
+
 							adapted: false,
 
 							mode:
@@ -413,6 +619,21 @@ export class Incluc0deAgent implements INodeType {
 
 							reason:
 								'service_unavailable',
+
+							context: {
+
+								providerConnected:
+									contextProvider !==
+									null,
+
+								status:
+									contextData?.status ??
+									'unavailable',
+
+								contexts:
+									contextData?.contexts ??
+									[],
+							},
 						},
 					},
 
@@ -423,6 +644,8 @@ export class Incluc0deAgent implements INodeType {
 			}
 		}
 
-		return [returnData];
+		return [
+			returnData,
+		];
 	}
 }
