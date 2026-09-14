@@ -11,8 +11,8 @@ import {
 
 import type {
 	Incluc0deContextProvider,
-	Incluc0deContextResult,
-	Incluc0deContextTool,
+//	Incluc0deContextResult,
+//	Incluc0deContextTool,
 } from './types';
 
 
