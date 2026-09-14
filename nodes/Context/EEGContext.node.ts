@@ -76,7 +76,7 @@ export class EEGContext implements INodeType {
 				type: 'string',
 
 				default:
-					'http://localhost:5678/webhook/eegtool/status',
+					'http://n8n.incluc0de.com.br/webhook/eegtool/status',
 
 				required: true,
 
