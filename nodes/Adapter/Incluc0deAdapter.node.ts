@@ -9,13 +9,13 @@ import { NodeConnectionTypes, NodeOperationError } from 'n8n-workflow';
 export class Incluc0deAdapter implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'Incluc0de Adapter',
-		name: 'Adapter',
+		name: 'Incluc0de Adapter',
 		icon: { light: 'file:adapter.svg', dark: 'file:adapter.dark.svg' },
 		group: ['input'],
 		version: [1],
 		description: 'Incluc0de Adapter Node',
 		defaults: {
-			name: 'Adapter',
+			name: 'Incluc0de Adapter',
 		},
 		inputs: [NodeConnectionTypes.Main],
 		outputs: [NodeConnectionTypes.Main],
@@ -25,7 +25,7 @@ export class Incluc0deAdapter implements INodeType {
 			// can change on the node.
 			{
 				displayName: 'Incluc0de Adapter',
-				name: 'Adapter',
+				name: 'Incluc0de Adapter',
 				type: 'string',
 				default: '',
 				placeholder: 'Incluc0de Adapter',
