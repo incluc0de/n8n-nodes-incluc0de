@@ -1,7 +1,7 @@
 import type {
-	ISupplyDataFunctions,
 	INodeType,
 	INodeTypeDescription,
+	ISupplyDataFunctions,
 	SupplyData,
 } from 'n8n-workflow';
 
@@ -11,22 +11,12 @@ import {
 
 import type {
 	Incluc0deContextProvider,
-//	Incluc0deContextResult,
-//	Incluc0deContextTool,
+	Incluc0deContextResult,
+	Incluc0deContextTool,
 } from './types';
 
-
-/**
- * IncluC0de Context Provider
- *
- * Responsável por agregar diferentes fontes
- * de contexto cognitivo e disponibilizá-las
- * ao IncluC0de Agent.
- */
 export class ContextProvider implements INodeType {
-
 	description: INodeTypeDescription = {
-
 		displayName: 'IncluC0de Context Provider',
 
 		name: 'incluc0deContextProvider',
@@ -41,20 +31,15 @@ export class ContextProvider implements INodeType {
 		version: 1,
 
 		description:
-			'Aggregates cognitive context sources for the IncluC0de Agent',
+			'Aggregates context sources for the IncluC0de Agent',
 
 		defaults: {
 			name: 'Context Provider',
 		},
 
-		/**
-		 * Context Tools serão conectados aqui.
-		 *
-		 * Exemplos:
-		 *
-		 * EEG Context
-		 * Interaction Context
-		 * Profile Context
+		/*
+		 * Context Tools conectam-se ao Provider
+		 * utilizando a conexão especializada AiTool.
 		 */
 		inputs: [
 			{
@@ -64,9 +49,8 @@ export class ContextProvider implements INodeType {
 			},
 		],
 
-		/**
-		 * Saída especializada conectada
-		 * ao IncluC0de Agent.
+		/*
+		 * O Provider conecta-se ao IncluC0de Agent.
 		 */
 		outputs: [
 			{
@@ -75,56 +59,197 @@ export class ContextProvider implements INodeType {
 			},
 		],
 
-		/**
-		 * Nesta primeira versão o Provider
-		 * não necessita de parâmetros próprios.
-		 */
 		properties: [],
 	};
 
-	/**
-	 * supplyData() permite que o Context Provider
-	 * funcione como subnode especializado.
-	 *
-	 * O objeto retornado em "response" será
-	 * disponibilizado ao IncluC0de Agent.
-	 */
 	async supplyData(
 		this: ISupplyDataFunctions,
 		itemIndex: number,
 	): Promise<SupplyData> {
+		/*
+		 * ---------------------------------------------------------
+		 * Obtém todos os Context Tools conectados ao Provider.
+		 * ---------------------------------------------------------
+		 */
 
-		const provider: Incluc0deContextProvider = {
+		let connectedData: unknown;
 
-			/**
-			 * Futuramente este método consultará
-			 * todos os Context Tools conectados
-			 * ao Provider.
-			 */
+		try {
+			connectedData =
+				await this.getInputConnectionData(
+					NodeConnectionTypes.AiTool,
+					itemIndex,
+				);
+		} catch {
+			connectedData = [];
+		}
+
+		/*
+		 * Dependendo da quantidade de conexões,
+		 * o n8n pode fornecer um único objeto
+		 * ou uma coleção de objetos.
+		 */
+		const contextTools:
+			Incluc0deContextTool[] =
+				Array.isArray(connectedData)
+					? connectedData as Incluc0deContextTool[]
+					: connectedData
+						? [
+								connectedData as
+									Incluc0deContextTool,
+							]
+						: [];
+
+		/*
+		 * ---------------------------------------------------------
+		 * Provider disponibilizado ao IncluC0de Agent.
+		 * ---------------------------------------------------------
+		 */
+
+		const provider:
+			Incluc0deContextProvider = {
 			getContexts: async ({
 				sessionId,
 				userId,
 			}) => {
+				const contexts:
+					Incluc0deContextResult[] = [];
 
-				/**
-				 * Nesta primeira implementação
-				 * ainda não existem Context Tools
-				 * sendo consultados.
+				/*
+				 * -------------------------------------------------
+				 * Consulta todos os Context Tools conectados.
+				 * -------------------------------------------------
+				 */
+				for (
+					const contextTool of
+						contextTools
+				) {
+					/*
+					 * Proteção contra conexões
+					 * incompatíveis com o contrato esperado.
+					 */
+					if (
+						!contextTool ||
+						typeof contextTool.getContext !==
+							'function'
+					) {
+						continue;
+					}
+
+					try {
+						const result =
+							await contextTool.getContext({
+								sessionId,
+								userId,
+							});
+
+						contexts.push(
+							result,
+						);
+					} catch (error) {
+						/*
+						 * A falha de um Context Tool
+						 * não deve interromper os demais.
+						 */
+						contexts.push({
+							contextType:
+								contextTool.contextType ??
+								'unknown',
+
+							status:
+								'unavailable',
+
+							context:
+								null,
+
+							metadata: {
+								reason:
+									'context_tool_error',
+
+								error:
+									error instanceof Error
+										? error.message
+										: String(error),
+							},
+						});
+					}
+				}
+
+				/*
+				 * -------------------------------------------------
+				 * Nenhum Context Tool conectado ou válido.
+				 * -------------------------------------------------
+				 */
+				if (
+					contexts.length === 0
+				) {
+					return {
+						status:
+							'unavailable',
+
+						contexts: [],
+					};
+				}
+
+				/*
+				 * -------------------------------------------------
+				 * Calcula o status agregado.
 				 *
-				 * Portanto, o Provider informa
-				 * que nenhum contexto está
-				 * disponível.
+				 * success:
+				 *   todos os contexts responderam com sucesso
+				 *
+				 * partial:
+				 *   pelo menos um contexto disponível
+				 *   e pelo menos um indisponível
+				 *
+				 * unavailable:
+				 *   nenhum contexto disponível
+				 * -------------------------------------------------
 				 */
 
+				const successfulContexts =
+					contexts.filter(
+						(context) =>
+							context.status ===
+							'success',
+					);
+
+				let status:
+					| 'success'
+					| 'partial'
+					| 'unavailable';
+
+				if (
+					successfulContexts.length ===
+					contexts.length
+				) {
+					status =
+						'success';
+				} else if (
+					successfulContexts.length > 0
+				) {
+					status =
+						'partial';
+				} else {
+					status =
+						'unavailable';
+				}
+
+				/*
+				 * -------------------------------------------------
+				 * Resultado agregado retornado ao IncluC0de Agent.
+				 * -------------------------------------------------
+				 */
 				return {
-					status: 'unavailable',
-					contexts: [],
+					status,
+					contexts,
 				};
 			},
 		};
 
 		return {
-			response: provider,
+			response:
+				provider,
 		};
 	}
 }
