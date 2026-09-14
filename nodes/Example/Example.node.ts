@@ -24,7 +24,7 @@ export class Example implements INodeType {
 			// Node properties which the user gets displayed and
 			// can change on the node.
 			{
-				displayName: 'My String',
+				displayName: 'Minha String',
 				name: 'myString',
 				type: 'string',
 				default: '',
