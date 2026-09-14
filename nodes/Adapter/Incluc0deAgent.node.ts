@@ -40,7 +40,16 @@ export class Incluc0deAgent implements INodeType {
 			name: 'IncluC0de Agent',
 		},
 
-		inputs: [NodeConnectionTypes.Main],
+		inputs: [	{
+			       type: NodeConnectionTypes.Main,
+		           },
+		           {
+			       type: NodeConnectionTypes.AiTool,
+		 	       displayName: 'Context',
+			       required: false,
+			       maxConnections: 1,
+		           },
+	           ],
 		outputs: [NodeConnectionTypes.Main],
 
 		properties: [
