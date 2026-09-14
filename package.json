@@ -37,7 +37,7 @@
     "credentials": [],
     "nodes": [
       "dist/nodes/Example/Example.node.js",
-      "dist/nodes/Adapter/Incluc0deAdapter.node.js"
+      "dist/nodes/Adapter/Incluc0deAgent.node.js"
     ]
   },
   "devDependencies": {
