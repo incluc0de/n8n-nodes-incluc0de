@@ -14,7 +14,7 @@ import {
 import type {
 	Incluc0deContextProvider,
 	Incluc0deContextProviderResult,
-} from '../ContextProvider/ContextProvider.node';
+} from '../ContextProvider/types';
 
 interface Incluc0deAgentResponse {
 	sessionId?: string | null;

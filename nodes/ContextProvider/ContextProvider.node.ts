@@ -9,6 +9,12 @@ import {
 	NodeConnectionTypes,
 } from 'n8n-workflow';
 
+import type {
+	Incluc0deContextProvider,
+	Incluc0deContextResult,
+	Incluc0deContextTool,
+} from './types';
+
 /**
  * Resultado produzido por uma fonte de contexto IncluC0de.
  *

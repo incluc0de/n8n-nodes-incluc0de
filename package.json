@@ -38,7 +38,8 @@
     "nodes": [
       "dist/nodes/Example/Example.node.js",
       "dist/nodes/Adapter/Incluc0deAgent.node.js",
-      "dist/nodes/Context/ContextProvider.node.js"
+      "dist/nodes/Context/ContextProvider.node.js",
+      "dist/nodes/Context/EEGContext.node.js"
     ]
   },
   "devDependencies": {
