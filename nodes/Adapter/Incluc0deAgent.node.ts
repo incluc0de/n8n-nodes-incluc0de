@@ -571,6 +571,33 @@ export class Incluc0deAgent implements INodeType {
 
 				/*
 				 * -------------------------------------------------
+				 * Detecção de adaptação
+				 *
+				 * Diferenças exclusivamente de espaços ou
+				 * quebras de linha nas extremidades não são
+				 * consideradas uma adaptação cognitiva.
+				 *
+				 * A normalização é utilizada SOMENTE para a
+				 * comparação. O conteúdo retornado pelo serviço
+				 * permanece inalterado.
+				 * -------------------------------------------------
+				 */
+
+				const adaptedContent =
+					responseData.adaptedContent;
+
+				const normalizedOriginalContent =
+					content.trim();
+
+				const normalizedAdaptedContent =
+					adaptedContent.trim();
+
+				const wasAdapted =
+					normalizedAdaptedContent !==
+					normalizedOriginalContent;
+
+				/*
+				 * -------------------------------------------------
 				 * Resultado
 				 * -------------------------------------------------
 				 */
@@ -601,16 +628,12 @@ export class Incluc0deAgent implements INodeType {
 								.originalContent ??
 							content,
 
-						adaptedContent:
-							responseData
-								.adaptedContent,
+						adaptedContent,
 
 						incluc0de: {
 
 							adapted:
-								responseData
-									.adaptedContent !==
-								content,
+								wasAdapted,
 
 							mode:
 								normalizedUserId
