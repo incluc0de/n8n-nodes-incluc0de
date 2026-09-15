@@ -81,7 +81,8 @@ export class Incluc0deAgent implements INodeType {
 				displayName: 'Service URL',
 				name: 'serviceUrl',
 				type: 'string',
-				default: 'http://n8n.incluc0de.com.br/webhook/agent',
+				default:
+					'http://n8n.incluc0de.com.br/webhook/agent',
 				required: true,
 				description:
 					'URL of the IncluC0de Agent adaptation endpoint',
@@ -120,8 +121,10 @@ export class Incluc0deAgent implements INodeType {
 			},
 
 			{
-				displayName: 'Self-Declared Neurodivergence',
-				name: 'selfDeclaredNeurodivergence',
+				displayName:
+					'Self-Declared Neurodivergence',
+				name:
+					'selfDeclaredNeurodivergence',
 				type: 'string',
 				typeOptions: {
 					rows: 2,
@@ -148,9 +151,11 @@ export class Incluc0deAgent implements INodeType {
 		this: IExecuteFunctions,
 	): Promise<INodeExecutionData[][]> {
 
-		const items = this.getInputData();
+		const items =
+			this.getInputData();
 
-		const returnData: INodeExecutionData[] = [];
+		const returnData:
+			INodeExecutionData[] = [];
 
 		for (
 			let itemIndex = 0;
@@ -158,7 +163,8 @@ export class Incluc0deAgent implements INodeType {
 			itemIndex++
 		) {
 
-			const item = items[itemIndex];
+			const item =
+				items[itemIndex];
 
 			/*
 			 * -----------------------------------------------------
@@ -219,7 +225,8 @@ export class Incluc0deAgent implements INodeType {
 				userId?.trim() || null;
 
 			const normalizedSelfDeclaration =
-				selfDeclaredNeurodivergence?.trim() || null;
+				selfDeclaredNeurodivergence
+					?.trim() || null;
 
 			/*
 			 * -----------------------------------------------------
@@ -243,10 +250,13 @@ export class Incluc0deAgent implements INodeType {
 			try {
 
 				contextProvider =
-					await this.getInputConnectionData(
-						NodeConnectionTypes.AiTool,
-						0,
-					) as Incluc0deContextProvider;
+					await this
+						.getInputConnectionData(
+							NodeConnectionTypes
+								.AiTool,
+							0,
+						) as
+							Incluc0deContextProvider;
 
 			} catch {
 
@@ -266,20 +276,22 @@ export class Incluc0deAgent implements INodeType {
 
 			if (
 				contextProvider &&
-				typeof contextProvider.getContexts ===
-					'function'
+				typeof contextProvider
+					.getContexts === 'function'
 			) {
 
 				try {
 
 					contextData =
-						await contextProvider.getContexts({
-							sessionId:
-								normalizedSessionId,
+						await contextProvider
+							.getContexts({
 
-							userId:
-								normalizedUserId,
-						});
+								sessionId:
+									normalizedSessionId,
+
+								userId:
+									normalizedUserId,
+							});
 
 				} catch {
 
@@ -288,7 +300,8 @@ export class Incluc0deAgent implements INodeType {
 					 * interromper o fluxo principal.
 					 */
 					contextData = {
-						status: 'unavailable',
+						status:
+							'unavailable',
 						contexts: [],
 					};
 				}
@@ -296,9 +309,11 @@ export class Incluc0deAgent implements INodeType {
 
 			/*
 			 * -----------------------------------------------------
-			 * REGRA ATUAL
+			 * REGRA DE PASS-THROUGH
 			 *
-			 * Sem User ID, sem autoidentificação e sem contexto:
+			 * Sem User ID, sem autoidentificação e sem
+			 * contexto utilizável:
+			 *
 			 * não existe informação para adaptação.
 			 *
 			 * Portanto:
@@ -310,8 +325,10 @@ export class Incluc0deAgent implements INodeType {
 			const hasUsableContext =
 				contextData !== null &&
 				(
-					contextData.status === 'success' ||
-					contextData.status === 'partial'
+					contextData.status ===
+						'success' ||
+					contextData.status ===
+						'partial'
 				);
 
 			if (
@@ -329,7 +346,8 @@ export class Incluc0deAgent implements INodeType {
 						sessionId:
 							normalizedSessionId,
 
-						userId: null,
+						userId:
+							null,
 
 						selfDeclaredNeurodivergence:
 							null,
@@ -342,7 +360,8 @@ export class Incluc0deAgent implements INodeType {
 
 						incluc0de: {
 
-							adapted: false,
+							adapted:
+								false,
 
 							mode:
 								'pass_through',
@@ -351,23 +370,27 @@ export class Incluc0deAgent implements INodeType {
 								'no_adaptation_information',
 
 							context: {
+
 								providerConnected:
 									contextProvider !==
 									null,
 
 								status:
-									contextData?.status ??
+									contextData
+										?.status ??
 									'unavailable',
 
 								contexts:
-									contextData?.contexts ??
+									contextData
+										?.contexts ??
 									[],
 							},
 						},
 					},
 
 					pairedItem: {
-						item: itemIndex,
+						item:
+							itemIndex,
 					},
 				});
 
@@ -378,34 +401,81 @@ export class Incluc0deAgent implements INodeType {
 			 * -----------------------------------------------------
 			 * Contrato enviado ao IncluC0de Agent Service
 			 *
-			 * IMPORTANTE:
+			 * O payload contém:
 			 *
-			 * Nesta etapa ainda NÃO enviaremos contextData
-			 * ao endpoint.
+			 * - conteúdo original;
+			 * - identificação da sessão;
+			 * - identificação opcional do usuário;
+			 * - autodeclaração opcional;
+			 * - contexto cognitivo agregado pelo
+			 *   Context Provider.
 			 *
-			 * Primeiro validaremos a arquitetura de
-			 * Context Provider.
+			 * O serviço recebe o contexto de forma genérica,
+			 * independentemente dos Context Tools conectados.
 			 * -----------------------------------------------------
 			 */
 
-			const requestBody: IDataObject = {
+			const requestBody:
+				IDataObject = {
 
 				sessionId:
 					normalizedSessionId,
 
 				content,
+
+				/*
+				 * -------------------------------------------------
+				 * Contexto agregado
+				 *
+				 * Mantemos o atributo "context" presente mesmo
+				 * quando nenhum contexto estiver disponível.
+				 *
+				 * Isso mantém estável o contrato do endpoint:
+				 *
+				 * success
+				 * partial
+				 * unavailable
+				 * -------------------------------------------------
+				 */
+				context:
+					contextData ?? {
+						status:
+							'unavailable',
+						contexts: [],
+					},
 			};
 
-			if (normalizedUserId) {
+			/*
+			 * -----------------------------------------------------
+			 * User ID
+			 *
+			 * Só é incluído no payload quando informado.
+			 * -----------------------------------------------------
+			 */
+
+			if (
+				normalizedUserId
+			) {
 
 				requestBody.userId =
 					normalizedUserId;
 			}
 
-			if (normalizedSelfDeclaration) {
+			/*
+			 * -----------------------------------------------------
+			 * Autodeclaração
+			 *
+			 * Só é incluída quando efetivamente informada.
+			 * -----------------------------------------------------
+			 */
 
-				requestBody.selfDeclaredNeurodivergence =
-					normalizedSelfDeclaration;
+			if (
+				normalizedSelfDeclaration
+			) {
+
+				requestBody
+					.selfDeclaredNeurodivergence =
+						normalizedSelfDeclaration;
 			}
 
 			try {
@@ -417,30 +487,33 @@ export class Incluc0deAgent implements INodeType {
 				 */
 
 				const response =
-					await this.helpers.httpRequest({
+					await this.helpers
+						.httpRequest({
 
-						method: 'POST',
+							method:
+								'POST',
 
-						url: serviceUrl,
+							url:
+								serviceUrl,
 
-						headers: {
-							'Content-Type':
-								'application/json',
+							headers: {
+								'Content-Type':
+									'application/json',
 
-							Accept:
-								'application/json',
-						},
+								Accept:
+									'application/json',
+							},
 
-						body:
-							requestBody,
+							body:
+								requestBody,
 
-						encoding:
-							'json',
-					});
+							encoding:
+								'json',
+						});
 
 				/*
 				 * -------------------------------------------------
-				 * O endpoint atualmente pode retornar:
+				 * O endpoint pode retornar:
 				 *
 				 * [
 				 *   {
@@ -456,7 +529,9 @@ export class Incluc0deAgent implements INodeType {
 					| Incluc0deAgentResponse
 					| undefined;
 
-				if (Array.isArray(response)) {
+				if (
+					Array.isArray(response)
+				) {
 
 					responseData =
 						response[0] as
@@ -478,7 +553,8 @@ export class Incluc0deAgent implements INodeType {
 				if (
 					!responseData ||
 					typeof responseData
-						.adaptedContent !== 'string'
+						.adaptedContent !==
+						'string'
 				) {
 
 					throw new NodeOperationError(
@@ -506,11 +582,13 @@ export class Incluc0deAgent implements INodeType {
 						...item.json,
 
 						sessionId:
-							responseData.sessionId ??
+							responseData
+								.sessionId ??
 							normalizedSessionId,
 
 						userId:
-							responseData.userId ??
+							responseData
+								.userId ??
 							normalizedUserId,
 
 						selfDeclaredNeurodivergence:
@@ -545,8 +623,12 @@ export class Incluc0deAgent implements INodeType {
 								'incluc0de-agent',
 
 							/*
-							 * Informações temporárias
-							 * para validar o Context Provider.
+							 * -------------------------------------------------
+							 * Contexto utilizado
+							 *
+							 * Mantemos essas informações na saída para
+							 * rastreabilidade e validação da arquitetura.
+							 * -------------------------------------------------
 							 */
 							context: {
 
@@ -555,18 +637,21 @@ export class Incluc0deAgent implements INodeType {
 									null,
 
 								status:
-									contextData?.status ??
+									contextData
+										?.status ??
 									'unavailable',
 
 								contexts:
-									contextData?.contexts ??
+									contextData
+										?.contexts ??
 									[],
 							},
 						},
 					},
 
 					pairedItem: {
-						item: itemIndex,
+						item:
+							itemIndex,
 					},
 				});
 
@@ -575,10 +660,16 @@ export class Incluc0deAgent implements INodeType {
 				/*
 				 * -------------------------------------------------
 				 * FAIL-SAFE
+				 *
+				 * Se o serviço estiver indisponível ou retornar
+				 * um contrato inválido, preservamos o conteúdo
+				 * original quando Fail-Safe estiver habilitado.
 				 * -------------------------------------------------
 				 */
 
-				if (!failSafe) {
+				if (
+					!failSafe
+				) {
 
 					throw new NodeOperationError(
 						this.getNode(),
@@ -612,7 +703,8 @@ export class Incluc0deAgent implements INodeType {
 
 						incluc0de: {
 
-							adapted: false,
+							adapted:
+								false,
 
 							mode:
 								'pass_through',
@@ -627,18 +719,21 @@ export class Incluc0deAgent implements INodeType {
 									null,
 
 								status:
-									contextData?.status ??
+									contextData
+										?.status ??
 									'unavailable',
 
 								contexts:
-									contextData?.contexts ??
+									contextData
+										?.contexts ??
 									[],
 							},
 						},
 					},
 
 					pairedItem: {
-						item: itemIndex,
+						item:
+							itemIndex,
 					},
 				});
 			}
