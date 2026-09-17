@@ -85,7 +85,7 @@ export class ProfileContext implements INodeType {
 				type: 'string',
 
 				default:
-					'http://n8n.incluc0de.com.br/webhook/profile',
+					'https://n8n.incluc0de.com.br/webhook/f01547a6-2c7d-4374-92e8-e8a58d2a03b3/profile',
 
 				required: true,
 
